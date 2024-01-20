@@ -1,0 +1,11 @@
+langchain>=0.1
+langchain-community==0.0.11
+langchain-core==0.1.8
+langchain-openai
+chromadb==0.4.18
+atlassian-python-api
+lxml
+streamlit
+# pillow
+# pytesseract
+# tiktoken

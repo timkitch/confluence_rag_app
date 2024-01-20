@@ -1,0 +1,149 @@
+from langchain_community.document_loaders import ConfluenceLoader
+
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from constants import *
+
+from langchain_community.vectorstores import Chroma
+
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+from langchain_core.prompts import ChatPromptTemplate
+
+class ConfluenceQA:
+    def __init__(self):
+        self.embedding = None
+        self.vectordb = None
+        self.llm = None
+        self.qa = None
+        self.retriever = None
+        self.retrieval_chain = None
+                
+        self.prompt = ChatPromptTemplate.from_template("""Answer the following question based only on the provided context:
+                                                     
+            <context>
+            {context}
+            </context>
+            
+            Question: {input}
+            
+            """, role="system")
+        self.retriever = None
+        self.retrieval_chain = None
+        
+    def init_embeddings(self) -> None:
+        # OpenAI ada embeddings API
+        self.embedding = OpenAIEmbeddings()
+                
+        self.vectordb = Chroma(persist_directory=DB_DIRECTORY, embedding_function=self.embedding, collection_name=DB_COLLECTION_NAME)
+                    
+    def init_models(self) -> None:
+        # OpenAI GPT 3.5 API
+        self.llm = ChatOpenAI(model_name=LLM_OPENAI_GPT35, temperature=0.0)
+        
+        # Use local LLM hosted by LM Studio
+        # self.llm = ChatOpenAI(
+        #     openai_api_key = "NULL",
+        #     temperature = 0,
+        #     openai_api_base = "http://localhost:1234/v1" 
+        # )
+        
+    # TODO implement purge_data
+    # def purge_data(self) -> None:
+    #     """
+    #     Clears the DB.
+    #     """
+    #     print("Clearing the DB. Collections before purge...")
+    #     self.persistent_client.list_collections()
+    #     self.persistent_client.delete_collection(DB_COLLECTION_NAME)
+    #     print("Collections after purge...")
+    #     self.persistent_client.list_collections()
+    #     print("Cleared the DB.")
+            
+    def vector_db_confluence_docs(self, config:dict = {}) -> None:
+        """
+        Extracts documents from Confluence, splits them into chunks, and adds them to the database.
+
+        Args:
+            config (dict): A dictionary containing the configuration parameters.
+                - confluence_url (str): The URL of the Confluence instance.
+                - username (str): The username for authentication.
+                - api_key (str): The API key for authentication.
+                - space_key (str): The key of the Confluence space.
+                - page_id (str): The ID of the Confluence page. If None, all pages in the space will be loaded.
+
+        Returns:
+            None
+        """
+        confluence_url = config.get("confluence_url",None)
+        username = config.get("username",None)
+        api_key = config.get("api_key",None)
+        space_key = config.get("space_key",None)
+        page_id = config.get("page_id", None)
+        
+        ## 1. Extract the documents
+        loader = ConfluenceLoader(
+            url=confluence_url,
+            username = username,
+            api_key= api_key
+        )
+        
+        if page_id and page_id != "None":
+            documents = loader.load(
+                space_key=space_key, 
+                page_ids=[page_id],
+                max_pages=1)
+        else:
+            documents = loader.load(
+                space_key=space_key, 
+                limit=100,
+                max_pages=50)
+        
+        ## 2. Split the documents
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        texts = text_splitter.split_documents(documents)
+        
+        ## 3. Add the documents to the DB
+        if self.vectordb:
+            print("count before", self.vectordb._collection.count())
+            self.vectordb.add_documents(documents=texts)
+            self.vectordb.persist()
+            print("count after", self.vectordb._collection.count())
+        else:
+            # this should never happen?
+            print("DB not initialized. Creating new DB from docs...")
+            self.vectordb = Chroma.from_documents(documents=texts,  embedding=self.embedding, persist_directory=DB_DIRECTORY)
+            self.persistent_client = self.vectordb.PersistentClient()
+            print("count after", self.vectordb._collection.count())
+        
+    def retreival_qa_chain(self) -> None:
+        """
+        Retrieves a question-answer chain using a custom prompt.
+
+        Returns:
+            None
+        """
+        document_chain = create_stuff_documents_chain(llm=self.llm, prompt=self.prompt)
+        
+        self.retriever = self.vectordb.as_retriever()
+        self.retrieval_chain = create_retrieval_chain(self.retriever, document_chain)
+
+    def answer_confluence(self, question: str) -> str:
+        """
+        Answers a question using the Confluence QA system.
+
+        Args:
+            question (str): The question to be answered.
+
+        Returns:
+            str: The answer to the question.
+        """        
+        response = self.retrieval_chain.invoke({"input": question})
+        
+        answer = response["answer"]
+    
+        if not answer:
+            print("LLM could not provide any answer.")
+            answer = 'Sorry, it seems I lack the domain information to answer that question. Try adding the data and ask again.'
+    
+        return answer
