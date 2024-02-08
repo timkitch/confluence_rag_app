@@ -11,7 +11,7 @@ The UI allows you to ingest a Confluence space in two ways:
 
 These instructions will help you get the project up and running on your local machine.
 
-The bot currently uses OpenAI's GPT 3.5 Turbo model. The model to use is defined in the constants.py file's ```LLM``` variable. You can change this variable to point to any OpenAI LLM.
+The bot currently uses OpenAI's GPT 3.5 Turbo model. The model to use is defined in the ```constants.py``` file's ```LLM``` variable. You can change this variable to point to any OpenAI LLM.
 
 Before getting started, create an OpenAI API key by going to https://platform.openai.com/api-keys. Then, create a file named ```.env``` in the root project directory and add this line:
 
