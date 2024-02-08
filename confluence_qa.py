@@ -38,8 +38,8 @@ class ConfluenceQA:
         self.vectordb = Chroma(persist_directory=DB_DIRECTORY, embedding_function=self.embedding, collection_name=DB_COLLECTION_NAME)
                     
     def init_models(self) -> None:
-        # OpenAI GPT 3.5 API
-        self.llm = ChatOpenAI(model_name=LLM_OPENAI_GPT35, temperature=0.0)
+        # OpenAI GPT
+        self.llm = ChatOpenAI(model_name=LLM, temperature=0.0)
         
         # Use local LLM hosted by LM Studio
         # self.llm = ChatOpenAI(

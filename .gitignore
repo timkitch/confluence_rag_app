@@ -140,3 +140,5 @@ chroma_db/
 # VS Code
 .vscode/
 *.code-workspace
+
+secrets.txt
