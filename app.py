@@ -84,10 +84,21 @@ if st.button('Get Answer', key='button2'):
         elif not confluence_qa:
             st.write("Please load Confluence page first.")
         else:
-            result = confluence_qa.answer_confluence(question)
-            st.session_state["chat_history"] += f"You: {question}\n"
-            st.session_state["chat_history"] += f"Bot: {result}\n ... \n"  # Append the result to the chat history
-            st.write(result)
+            sources = []
+            sources_str = ""
+            history = ""
+            answer, sources = confluence_qa.answer_confluence(question)
+            for source in sources:
+                sources_str += f"{source}, \n"
+                
+            sources_str = sources_str.rstrip(" ,\n")
+            
+            history += f"You: {question}\nBot: {answer}\n\nSources:\n{sources_str}"
+            st.session_state["chat_history"] += history
+            
+            output = f"{answer}\n\nSources:\n{sources_str}"
+                
+            st.write(output)
         
             
 # Display chat history

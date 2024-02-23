@@ -9,6 +9,7 @@ from langchain_community.vectorstores import Chroma
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from langchain_core.prompts import ChatPromptTemplate
+from typing import Tuple, List
 
 class ConfluenceQA:
     def __init__(self):
@@ -97,10 +98,9 @@ class ConfluenceQA:
             documents = loader.load(
                 space_key=space_key, 
                 limit=100,
-                max_pages=50)
+                max_pages=1000)
         
-        ## 2. Split the documents
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        ## 2. Split the documents        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         texts = text_splitter.split_documents(documents)
         
         ## 3. Add the documents to the DB
@@ -128,7 +128,9 @@ class ConfluenceQA:
         self.retriever = self.vectordb.as_retriever()
         self.retrieval_chain = create_retrieval_chain(self.retriever, document_chain)
 
-    def answer_confluence(self, question: str) -> str:
+    
+    def answer_confluence(self, question: str) -> Tuple[str, List[str]]:
+        # Your code here
         """
         Answers a question using the Confluence QA system.
 
@@ -141,9 +143,20 @@ class ConfluenceQA:
         response = self.retrieval_chain.invoke({"input": question})
         
         answer = response["answer"]
+        
+        # we don't want duplicates in sources
+        sources = set()
+
+        for doc in response['context']:
+            sources.add(doc.metadata['source'])
+        
+        print(f"Number of sources: {len(sources)}")
+        for source in sources:
+            print(f"Sources: {source}")
+            
     
         if not answer:
             print("LLM could not provide any answer.")
             answer = 'Sorry, it seems I lack the domain information to answer that question. Try adding the data and ask again.'
     
-        return answer
+        return answer, sources
