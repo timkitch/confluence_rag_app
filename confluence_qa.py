@@ -100,7 +100,8 @@ class ConfluenceQA:
                 limit=100,
                 max_pages=1000)
         
-        ## 2. Split the documents        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        ## 2. Split the documents        
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         texts = text_splitter.split_documents(documents)
         
         ## 3. Add the documents to the DB
@@ -125,7 +126,11 @@ class ConfluenceQA:
         """
         document_chain = create_stuff_documents_chain(llm=self.llm, prompt=self.prompt)
         
-        self.retriever = self.vectordb.as_retriever()
+        # TODO make threshold configurable
+        self.retriever = self.vectordb.as_retriever(
+            search_type="similarity_score_threshold", 
+            search_kwargs={"score_threshold": 0.7}
+        )
         self.retrieval_chain = create_retrieval_chain(self.retriever, document_chain)
 
     
