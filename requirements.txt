@@ -1,8 +1,9 @@
-langchain>=0.1
-langchain-community==0.0.11
-langchain-core==0.1.8
+langchain==0.1.9
+langchain-community
+langchain-core
 langchain-openai
 chromadb==0.4.18
+flashrank
 atlassian-python-api
 lxml
 streamlit
