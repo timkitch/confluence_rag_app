@@ -24,7 +24,7 @@ if "confluence_qa" not in st.session_state:
     confluence_qa = ConfluenceQA()
     confluence_qa.init_embeddings()
     confluence_qa.init_models()
-    confluence_qa.retreival_qa_chain()
+    confluence_qa.retrieval_qa_chain()
     st.session_state["confluence_qa"] = confluence_qa
 
 # @st.cache_resource

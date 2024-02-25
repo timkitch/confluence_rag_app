@@ -2,7 +2,6 @@ from langchain_community.document_loaders import ConfluenceLoader
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from constants import *
 
 from langchain_community.vectorstores import Chroma
 
@@ -10,14 +9,13 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from langchain_core.prompts import ChatPromptTemplate
 
-from langchain.chains import SimpleSequentialChain
-from langchain_core.output_parsers import StrOutputParser
-from langchain.chains import LLMChain
-
-# from langchain.rerankers import Reranker
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import FlashrankRerank
 
 from typing import Tuple, List
 
+from constants import *
+from utils import pretty_print_docs
 
 class ConfluenceQA:
     def __init__(self):
@@ -41,21 +39,6 @@ class ConfluenceQA:
             role="system",
         )
         
-        # Define the reranking prompt template
-        self.reranking_prompt = ChatPromptTemplate.from_template(
-            """Rank the following documents in order of relevance to the query:
-
-            Query: {query}
-            Documents:
-            <documents>
-            {documents}
-            </documents>
-            Answer:
-            [{'page_content': '{page_content}', 'metadata': {...}}]
-            """,
-            role="system",
-        )
-        
         self.retriever = None
         self.retrieval_chain = None
 
@@ -72,8 +55,6 @@ class ConfluenceQA:
     def init_models(self) -> None:
         # OpenAI GPT
         self.llm = ChatOpenAI(model_name=LLM, temperature=0.0)
-        # Initialize the reranking LLM
-        self.reranking_llm = ChatOpenAI(model_name=LLM, temperature=0.0)
 
         # Use local LLM hosted by LM Studio
         # self.llm = ChatOpenAI(
@@ -150,7 +131,7 @@ class ConfluenceQA:
             self.persistent_client = self.vectordb.PersistentClient()
             print("count after", self.vectordb._collection.count())
 
-    def retreival_qa_chain(self) -> None:
+    def retrieval_qa_chain(self) -> None:
         """
         Retrieves a question-answer chain using a custom prompt.
 
@@ -159,38 +140,18 @@ class ConfluenceQA:
         """
         document_chain = create_stuff_documents_chain(llm=self.llm, prompt=self.prompt)
 
-        # reranker = Reranker(llm=self.llm, prompt="Rerank these documents:")
-
         # TODO make threshold configurable
         self.retriever = self.vectordb.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={"score_threshold": 0.7, "k": 5},
         )
-        
-        # Initialize the reranking output parser
-        reranking_output_parser = StrOutputParser()
-        
-        # Create the reranking chain
-        reranking_chain = LLMChain(llm=self.reranking_llm, prompt=self.reranking_prompt, output_parser=reranking_output_parser)
-        
-        print(f"document_chain type: {type(document_chain)}. reranking_chain type: {type(reranking_chain)}")   
-        
-        
-        # # Create a new chain that wraps the reranking chain and the document chain
-        # document_chain_wrapper = Chain(input_variables=reranking_chain.input_variables, output_variables=document_chain.output_variables, call=lambda c: reranking_chain.run(c) and document_chain.run(c))
-
-        # # Create the sequential chain with the document chain wrapper as the first chain
-        # document_chain = SimpleSequentialChain(chains=[document_chain_wrapper])
                 
-        # Modify the existing document chain to include the reranking chain
-        complete_chain = SimpleSequentialChain(chains=[reranking_chain, document_chain])
-        
-        # Create the retrieval chain with the modified document chain
-        self.retrieval_chain = create_retrieval_chain(self.retriever, complete_chain)
-        
-        # self.retrieval_chain = create_retrieval_chain(self.retriever, document_chain, reranker=reranker)
-        # self.retrieval_chain = create_retrieval_chain(self.retriever, document_chain)
-
+        compressor = FlashrankRerank()
+        reranked_retriever = ContextualCompressionRetriever(
+            base_compressor=compressor, base_retriever=self.retriever
+            )
+    
+        self.retrieval_chain = create_retrieval_chain(reranked_retriever, document_chain)
 
     def answer_confluence(self, question: str) -> Tuple[str, List[str]]:
         # Your code here
@@ -209,9 +170,14 @@ class ConfluenceQA:
 
         # we don't want duplicates in sources
         sources = set()
-
-        for doc in response["context"]:
+        
+        compressed_docs = self.retriever.get_relevant_documents(question)
+        for doc in compressed_docs:
             sources.add(doc.metadata["source"])
+        
+        # if using FlashrankRerank, the doc metata is not available in the response
+        # for doc in response["context"]:
+        #     sources.add(doc.metadata["source"])
 
         print(f"Number of sources: {len(sources)}")
         for source in sources:
