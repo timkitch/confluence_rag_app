@@ -55,6 +55,8 @@ class ConfluenceQA:
     def init_models(self) -> None:
         # OpenAI GPT
         self.llm = ChatOpenAI(model_name=LLM, temperature=0.0)
+        
+        # self.llm = ChatOpenAI(model_name="gemma", temperature=0.0, base_url="http://localhost:11434/v1")
 
         # Use local LLM hosted by LM Studio
         # self.llm = ChatOpenAI(
@@ -110,7 +112,7 @@ class ConfluenceQA:
 
         ## 2. Split the documents
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200
+            chunk_size=2000, chunk_overlap=300
         )
         texts = text_splitter.split_documents(documents)
 

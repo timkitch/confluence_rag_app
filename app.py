@@ -69,8 +69,8 @@ with st.sidebar.form(key='cf-params'):
 
             load_confluence(st.session_state["config"])
         st.write("Confluence Space Ingested")
-    else:
-        st.write("Restored previously stored Confluence data")
+    # else:
+    #     st.write("Restored previously stored Confluence data")
 
 st.title("Confluence Q&A Demo")
 
@@ -86,18 +86,16 @@ if st.button('Get Answer', key='button2'):
         else:
             sources = []
             sources_str = ""
-            history = ""
             answer, sources = confluence_qa.answer_confluence(question)
             for source in sources:
                 sources_str += f"{source}, \n"
                 
             sources_str = sources_str.rstrip(" ,\n")
             
-            history += f"You: {question}\nBot: {answer}\n\nSources:\n{sources_str}"
-            st.session_state["chat_history"] += history
-            
+            st.session_state["chat_history"] += f"You: {question}\nBot: {answer}\n\nSources:\n{sources_str}\n================================\n"
+                        
             output = f"{answer}\n\nSources:\n{sources_str}"
-                
+                            
             st.write(output)
         
             
