@@ -142,3 +142,5 @@ chroma_db/
 *.code-workspace
 
 secrets.txt
+
+cf-rag/

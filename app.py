@@ -72,7 +72,7 @@ with st.sidebar.form(key='cf-params'):
     # else:
     #     st.write("Restored previously stored Confluence data")
 
-st.title("Confluence Q&A Demo")
+st.title("Confluence Q&A")
 
 question = st.text_input('Ask a question', placeholder="What's the most common cause of ELK issues?")
 
@@ -87,15 +87,15 @@ if st.button('Get Answer', key='button2'):
             sources = []
             sources_str = ""
             answer, sources = confluence_qa.answer_confluence(question)
-            for source in sources:
-                sources_str += f"{source}, \n"
-                
-            sources_str = sources_str.rstrip(" ,\n")
-            
-            st.session_state["chat_history"] += f"You: {question}\nBot: {answer}\n\nSources:\n{sources_str}\n================================\n"
-                        
-            output = f"{answer}\n\nSources:\n{sources_str}"
+            citations = []
+            for i, source in enumerate(sources, start=1):
+                citations.append(f"[{i}]({source})")
+            citations_str = ", ".join(citations)
+
+            st.session_state["chat_history"] += f"You: {question}\nBot: {answer}\n\nSources:\n{citations_str}\n================================\n"
                             
+            output = f"{answer}\n\nSources:\n{citations_str}"
+                                    
             st.write(output)
         
             

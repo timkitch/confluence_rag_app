@@ -27,7 +27,8 @@ class ConfluenceQA:
         self.retrieval_chain = None
 
         self.prompt = ChatPromptTemplate.from_template(
-            """Answer the following question based only on the provided context:
+            """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to 
+            answer the question. If you don't know the answer, just say that you don't know.
                                                      
             <context>
             {context}
@@ -56,8 +57,6 @@ class ConfluenceQA:
         # OpenAI GPT
         self.llm = ChatOpenAI(model_name=LLM, temperature=0.0)
         
-        # self.llm = ChatOpenAI(model_name="gemma", temperature=0.0, base_url="http://localhost:11434/v1")
-
         # Use local LLM hosted by LM Studio
         # self.llm = ChatOpenAI(
         #     openai_api_key = "NULL",
